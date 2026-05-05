@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--black/white-->
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+
+    <!--light theme-->
+    <color name="purple_primary">#4F378B</color>
+    <color name="purple_secondary">#7B60BD</color>
+    <color name="pink_tertiary">#D0BCFF</color>
+    <color name="grayish_purple">#423D52</color>
+    <color name="disabled_gray_light">#BBB</color>
+    <color name="error_text_dark">#B00020</color>
+    <color name="success_text_dark">#008000</color>
+    <color name="card_background_light">#EDEDED</color>
+
+    <!-- dark theme #6A84EB-->
+    <color name="blue_primary">#012E47</color>
+    <color name="blue_secondary">#0288D1</color>
+    <color name="blue_tertiary">#01579B</color>
+    <color name="faint_blue">#8BD6FE</color>
+    <color name="disabled_gray_dark">#555</color>
+    <color name="error_text_light">#FF5252</color>
+    <color name="success_text_light">#00A300</color>
+    <color name="card_background_dark">#555</color>
+
+    <!--general-->
+    <color name="red">#B00020</color>
+</resources>

@@ -1,0 +1,165 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/main"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context=".activities.ItemDetailsActivity">
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:fillViewport="true">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:padding="32dp"
+            android:orientation="vertical">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="8dp"
+                android:text="@string/item_name"
+                android:textSize="16sp"/>
+
+            <EditText
+                android:id="@+id/editTextItemName"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:minWidth="320dp"
+                android:minHeight="48dp"
+                android:layout_marginBottom="24dp"
+                android:importantForAutofill="no"
+                android:hint="@string/example_item"
+                android:inputType="text"
+                android:textSize="24sp"
+                android:textStyle="bold"
+                android:enabled="false"/>
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="8dp"
+                android:text="@string/description"
+                android:textSize="16sp"/>
+
+            <EditText
+                android:id="@+id/editTextDescription"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:minWidth="320dp"
+                android:minHeight="48dp"
+                android:layout_marginBottom="24dp"
+                android:importantForAutofill="no"
+                android:hint="@string/description_optional"
+                android:textColorHint="@color/hint_color_selector"
+                android:inputType="text"
+                android:enabled="false"/>
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="8dp"
+                android:text="@string/quantity"
+                android:textSize="16sp"/>
+
+            <LinearLayout
+                android:id="@+id/quantityWidget"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="24dp"
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
+
+                <ImageButton
+                    android:id="@+id/buttonDecrease"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:src="@drawable/minus_icon"
+                    app:tint="@color/quantity_buttons_selector"
+                    android:enabled="false"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:contentDescription="@string/decrease_quantity"/>
+
+                <EditText
+                    android:id="@+id/editTextQuantity"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:minHeight="48dp"
+                    android:layout_marginHorizontal="16dp"
+                    android:importantForAutofill="no"
+                    android:hint="@string/initial_qty"
+                    android:inputType="number"
+                    android:maxLength="9"
+                    android:textAlignment="center"
+                    android:textSize="18sp"
+                    android:enabled="false"/>
+
+                <ImageButton
+                    android:id="@+id/buttonIncrease"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:src="@drawable/plus_icon"
+                    app:tint="@color/quantity_buttons_selector"
+                    android:enabled="false"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:contentDescription="@string/increase_quantity"/>
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/textViewStatus"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="12dp"
+                android:text=""
+                android:textColor="?attr/textColorError"
+                android:visibility="gone"/>
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:minWidth="320dp"
+                android:layout_marginBottom="16dp"
+                android:orientation="horizontal"
+                android:gravity="center_horizontal">
+
+                <Button
+                    android:id="@+id/buttonEdit"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:minWidth="152dp"
+                    android:text="@string/edit"
+                    android:textSize="16sp"
+                    android:textColor="@color/white"
+                    android:backgroundTint="?attr/colorPrimary"/>
+
+                <Space
+                    android:id="@+id/space"
+                    android:layout_width="16dp"
+                    android:layout_height="wrap_content"/>
+
+                <Button
+                    android:id="@+id/buttonDelete"
+                    style="@style/Widget.Material3.Button.TextButton"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:minWidth="152dp"
+                    android:text="@string/delete"
+                    android:textSize="16sp"
+                    android:textColor="?attr/colorSecondary"/>
+            </LinearLayout>
+
+            <Button
+                android:id="@+id/buttonSave"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:minWidth="320dp"
+                android:text="@string/save"
+                android:visibility="gone"/>
+
+        </LinearLayout>
+    </ScrollView>
+</androidx.constraintlayout.widget.ConstraintLayout>
