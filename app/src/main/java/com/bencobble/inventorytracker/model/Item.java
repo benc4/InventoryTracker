@@ -1,64 +1,53 @@
 package com.bencobble.inventorytracker.model;
 
-import androidx.annotation.NonNull;
-import androidx.room.ColumnInfo;
-import androidx.room.Entity;
-import androidx.room.PrimaryKey;
+import com.google.firebase.firestore.DocumentId;
 
-// Represents an Item
-// Uses Room to create a table
-@Entity
+// Item model class
+// Represents an inventory item with unique id, name, optional description, and quantity
 public class Item {
 
     /*Columns*/
-    @PrimaryKey(autoGenerate = true)
-    @ColumnInfo(name = "item_id")
-    private long mID;
+    @DocumentId
+    private String id;
+    private String name;
+    private String description;
+    private int quantity;
 
-    @NonNull
-    @ColumnInfo(name = "name")
-    private String mName;
+    /*Constructors*/
+    public Item() {} // No-argument constructor needed for Firebase
 
-    @ColumnInfo(name = "description")
-    private String mDescription;
-
-    @ColumnInfo(name = "quantity")
-    private int mQuantity;
-
-    /*Constructor*/
-    public Item (@NonNull String name, String description, int quantity) {
-        mName = name;
-        mDescription = description;
-        mQuantity = quantity;
+    public Item(String name, String description, int quantity) {
+        this.name = name;
+        this.description = description;
+        this.quantity = quantity;
     }
 
     /*Getters and setters*/
-    public long getID() {
-        return mID;
+    public String getID() {
+        return id;
     }
-    public void setID(long id) {
-        mID = id;
+    public void setID(String id) {
+        this.id = id;
     }
 
-    @NonNull
     public String getName() {
-        return mName;
+        return name;
     }
-    public void setName(@NonNull String name) {
-        mName = name;
+    public void setName(String name) {
+        this.name = name;
     }
 
     public String getDescription() {
-        return mDescription;
+        return description;
     }
     public void setDescription(String description) {
-        mDescription = description;
+        this.description = description;
     }
 
     public int getQuantity() {
-        return mQuantity;
+        return quantity;
     }
     public void setQuantity(int quantity) {
-        mQuantity = quantity;
+        this.quantity = quantity;
     }
 }

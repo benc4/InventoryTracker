@@ -1,5 +1,7 @@
 plugins {
     alias(libs.plugins.android.application)
+    id 'com.google.gms.google-services'
+    id 'com.google.dagger.hilt.android'
 }
 
 android {
@@ -37,11 +39,29 @@ dependencies {
     implementation libs.material
     implementation libs.activity
     implementation libs.constraintlayout
-    testImplementation libs.junit
-    androidTestImplementation libs.ext.junit
-    androidTestImplementation libs.espresso.core
     implementation 'androidx.recyclerview:recyclerview:1.2.1'
     implementation 'androidx.cardview:cardview:1.0.0'
-    implementation 'androidx.room:room-runtime:2.4.0'
-    annotationProcessor 'androidx.room:room-compiler:2.4.0'
+
+    // Hilt
+    implementation 'com.google.dagger:hilt-android:2.59.2'
+    annotationProcessor 'com.google.dagger:hilt-compiler:2.59.2'
+
+    // Firebase
+    implementation platform('com.google.firebase:firebase-bom:34.13.0')
+    implementation 'com.google.firebase:firebase-auth'
+    implementation 'com.google.firebase:firebase-firestore'
+
+    // Navigation Component
+    implementation 'androidx.navigation:navigation-fragment:2.9.0'
+    implementation 'androidx.navigation:navigation-ui:2.9.0'
+
+    // MPAndroidChart
+    implementation 'com.github.PhilJay:MPAndroidChart:v3.1.0'
+
+    // Testing
+    testImplementation libs.junit
+    testImplementation 'org.mockito:mockito-core:5.14.0'
+    testImplementation 'androidx.arch.core:core-testing:2.2.0'
+    androidTestImplementation libs.ext.junit
+    androidTestImplementation libs.espresso.core
 }

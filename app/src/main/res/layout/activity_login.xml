@@ -27,15 +27,15 @@
                 android:textAppearance="?attr/textAppearanceLabelLarge" />
 
             <EditText
-                android:id="@+id/editTextUsername"
+                android:id="@+id/editTextEmail"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:minWidth="320dp"
                 android:minHeight="48dp"
                 android:layout_marginBottom="15dp"
-                android:autofillHints="username"
-                android:hint="@string/username"
-                android:inputType="text"/>
+                android:autofillHints="emailAddress"
+                android:hint="@string/email"
+                android:inputType="textEmailAddress"/>
 
             <EditText
                 android:id="@+id/editTextPassword"

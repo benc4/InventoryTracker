@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "396328180571",
+    "project_id": "inventorytracker-42ac3",
+    "storage_bucket": "inventorytracker-42ac3.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:396328180571:android:0047a0950125dc3132987e",
+        "android_client_info": {
+          "package_name": "com.bencobble.inventorytracker"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDYam3d-ifAHf5Kxw2JC1QJiIyA1EDwh3E"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

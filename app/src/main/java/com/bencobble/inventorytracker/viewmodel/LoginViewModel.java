@@ -1,19 +1,24 @@
 package com.bencobble.inventorytracker.viewmodel;
 
-import android.app.Application;
-
-import androidx.lifecycle.AndroidViewModel;
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
+import androidx.lifecycle.ViewModel;
 
-import com.bencobble.inventorytracker.repository.InventoryRepository;
+import com.bencobble.inventorytracker.repository.UserRepository;
 
-// ViewModel for LoginActivity
-// Connects to InventoryRepository for database operations
-// Handles login and account creation
-public class LoginViewModel extends AndroidViewModel {
-    private final InventoryRepository mRepo;
+import javax.inject.Inject;
 
+import dagger.hilt.android.lifecycle.HiltViewModel;
+
+// LoginViewModel used by LoginFragment
+// Connects to UserRepository for Firebase Authentication operations
+// Exposes UserResult MutableLiveData observed by LoginFragment
+// Managed by Hilt for dependency injection
+@HiltViewModel
+public class LoginViewModel extends ViewModel {
+    private final UserRepository mRepo;
+
+    // UserResult enum
     // Contains status codes for login and account creation
     public enum UserResult {
         SUCCESS_LOGIN,
@@ -21,39 +26,55 @@ public class LoginViewModel extends AndroidViewModel {
         EMPTY_FIELDS,
         INVALID_CREDENTIALS,
         USER_NOT_FOUND,
-        DATABASE_ERROR,
-        USERNAME_TAKEN,
+        USER_DISABLED,
+        TOO_MANY_REQUESTS,
+        EMAIL_TAKEN,
+        EMAIL_INVALID,
+        WEAK_PASSWORD,
+        FIREBASE_AUTH_ERROR,
+        AUTHENTICATION_DISABLED
     }
 
-    // LiveData to hold the result of login or account creation
+    // LiveData to hold the UserResult enum status code from login or account creation
     private final MutableLiveData<UserResult> mUserResult = new MutableLiveData<>();
     public LiveData<UserResult> getUserResult() { return mUserResult; }
 
-    public LoginViewModel(Application application) {
-        super(application);
-        mRepo = InventoryRepository.getInstance(application.getApplicationContext());
+    /* Constructor */
+    @Inject
+    public LoginViewModel(UserRepository repo) {
+        mRepo = repo;
     }
 
-    // Attempts to log in using provided username and password
-    public void login(String username, String password) {
-        // Check if fields are empty before contacting db
-        if (username.isEmpty() || password.isEmpty()) {
+    /* Authentication methods */
+
+    // login method
+    // Takes an email and password as parameters
+    // Calls UserRepository login method to attempt login
+    public void login(String email, String password) {
+        // Check for empty fields before calling login
+        if (email.isEmpty() || password.isEmpty()) {
             mUserResult.setValue(UserResult.EMPTY_FIELDS);
             return;
         }
-        // Call login method in InventoryRepository
-        mRepo.login(username, password, mUserResult);
+        mRepo.login(email, password, mUserResult);
     }
 
-    // Attempts to add a new user to the database
-    // using provided username and password
-    public void createAccount(String username, String password) {
-        // Check if fields are empty before contacting db
-        if (username.isEmpty() || password.isEmpty()) {
+    // createAccount method
+    // Takes an email and password as parameters
+    // Calls UserRepository createAccount method to attempt account creation
+    public void createAccount(String email, String password) {
+        // Check for empty fields before calling createAccount
+        if (email.isEmpty() || password.isEmpty()) {
             mUserResult.setValue(UserResult.EMPTY_FIELDS);
             return;
         }
-        // Call createAccount method in InventoryRepository
-        mRepo.createAccount(username, password, mUserResult);
+        mRepo.createAccount(email, password, mUserResult);
+    }
+
+    // isLoggedIn method
+    // Returns true if a user is logged in, false otherwise
+    // Calls UserRepository isLoggedIn method
+    public boolean isLoggedIn() {
+        return mRepo.isLoggedIn();
     }
 }

@@ -160,6 +160,22 @@
                 android:text="@string/save"
                 android:visibility="gone"/>
 
+            <TextView
+                android:id="@+id/textViewHistoryLabel"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="24dp"
+                android:layout_marginBottom="8dp"
+                android:text="@string/quantity_history"
+                android:textSize="16sp"
+                android:visibility="gone"/>
+
+            <com.github.mikephil.charting.charts.LineChart
+                android:id="@+id/lineChartHistory"
+                android:layout_width="match_parent"
+                android:layout_height="200dp"
+                android:visibility="gone"/>
+
         </LinearLayout>
     </ScrollView>
 </androidx.constraintlayout.widget.ConstraintLayout>

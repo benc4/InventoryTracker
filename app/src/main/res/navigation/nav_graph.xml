@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<navigation xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    app:startDestination="@id/loginFragment">
+
+    <fragment
+        android:id="@+id/loginFragment"
+        android:name="com.bencobble.inventorytracker.fragments.LoginFragment"
+        android:label="Inventory Tracker"
+        tools:layout="@layout/activity_login">
+
+        <action
+            android:id="@+id/action_login_to_grid"
+            app:destination="@id/inventoryGridFragment"
+            app:popUpTo="@id/loginFragment"
+            app:popUpToInclusive="true" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/inventoryGridFragment"
+        android:name="com.bencobble.inventorytracker.fragments.InventoryGridFragment"
+        android:label="My Inventory"
+        tools:layout="@layout/activity_inventory_grid">
+
+        <action
+            android:id="@+id/action_grid_to_addItem"
+            app:destination="@id/addItemFragment" />
+
+        <action
+            android:id="@+id/action_grid_to_itemDetails"
+            app:destination="@id/itemDetailsFragment" />
+
+        <action
+            android:id="@+id/action_grid_to_login"
+            app:destination="@id/loginFragment"
+            app:popUpTo="@id/inventoryGridFragment"
+            app:popUpToInclusive="true" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/addItemFragment"
+        android:name="com.bencobble.inventorytracker.fragments.AddItemFragment"
+        android:label="Add Item"
+        tools:layout="@layout/activity_add_item" />
+
+    <fragment
+        android:id="@+id/itemDetailsFragment"
+        android:name="com.bencobble.inventorytracker.fragments.ItemDetailsFragment"
+        android:label="Edit Item"
+        tools:layout="@layout/activity_item_details">
+
+        <argument
+            android:name="itemId"
+            app:argType="string" />
+    </fragment>
+
+</navigation>

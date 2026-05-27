@@ -13,16 +13,16 @@
     <string name="sign_out_confirm">Are you sure you want to sign out?</string>
     <string name="sms_accepted">SMS notifications enabled</string>
     <string name="sms_denied">SMS notifications denied</string>
-    <string name="enter_user_pass">Please enter a username and password</string>
-    <string name="invalid_user_pass">Invalid username or password</string>
+    <string name="enter_user_pass">Please enter an email and password</string>
+    <string name="invalid_user_pass">Invalid email or password</string>
     <string name="account_created">Account created! You can now log in.</string>
-    <string name="username_exists">Username already exists.</string>
-    <string name="user_not_found">Username does not exist</string>
+    <string name="username_exists">An account with this email already exists.</string>
+    <string name="user_not_found">No account found with this email</string>
     <string name="database_error">An error occurred. Please try again.</string>
     <string name="qty">"Qty: "</string>
     <string name="update_item_empty">Please enter a name and quantity</string>
     <string name="add_item_failed">An error occurred while adding the item. Please try again.</string>
-    <string name="username">Username</string>
+    <string name="email">Email</string>
     <string name="password">Password</string>
     <string name="login">Login</string>
     <string name="create_account">Create Account</string>
@@ -45,4 +45,7 @@
     <string name="get_items_failed">An error occurred while retrieving items. Please try again.</string>
     <string name="low_stock_noti_sent_for">"Low stock notification sent for: "</string>
     <string name="delete_confirmation">"Are you sure you want to delete "</string>
+    <string name="quantity_history">Quantity History</string>
+    <string name="something_went_wrong">Something went wrong. Please try again.</string>
+    <string name="invalid_quantity">Please enter a valid quantity</string>
 </resources>
