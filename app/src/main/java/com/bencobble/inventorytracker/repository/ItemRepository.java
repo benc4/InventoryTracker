@@ -12,10 +12,12 @@ import com.bencobble.inventorytracker.viewmodel.InventoryViewModel;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.firestore.CollectionReference;
+import com.google.firebase.firestore.DocumentReference;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.ListenerRegistration;
 import com.google.firebase.firestore.Query;
+import com.google.firebase.firestore.WriteBatch;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -142,30 +144,36 @@ public class ItemRepository {
 
     /* AuditLog methods */
 
-    // writeAuditLog method
-    // Writes an audit log entry to the user's AuditLog collection
-    // Called when an item is added, updated, or deleted
+    // addAuditLogToBatch method
+    // Adds an audit log write to a Firestore WriteBatch
     // Includes the uid of who made the change, item's id, action, and details
-    private void writeAuditLog(String uid, String itemId, String action, String details) {
-        // Builds the log object, finds the user's AuditLog collection, adds the object
+    // Called when an item is added, updated, or deleted
+    private void addAuditLogToBatch(WriteBatch batch, String uid, String itemId,
+                                    String action, String details) {
+        // Fetch a document reference for the auditLog on the client side
+        DocumentReference logRef = getAuditLogCollection(uid).document();
+
+        // Build the log object and add the write to the batch
         AuditLog log = new AuditLog(uid, itemId, action, details);
-        getAuditLogCollection(uid).add(log)
-                .addOnFailureListener(e -> Log.e(TAG, "Error writing audit log: " + e.getMessage(), e));
+        batch.set(logRef, log);
     }
 
     /* QuantityHistory methods */
 
-    // writeQuantityHistory method
-    // Writes a quantity history entry to the item's QuantityHistory collection
+    // addQuantityHistoryToBatch method
+    // Adds a quantity history write to a Firestore WriteBatch
     // Called when an item's quantity is updated or initially set
     // Includes the uid of who made the change, item's id, old quantity, and new quantity
-    private void writeQuantityHistory(String uid, String itemId, int oldQty, int newQty) {
+    private void addQuantityHistoryToBatch(WriteBatch batch, String uid, String itemId,
+                                           int oldQty, int newQty) {
         if (oldQty == newQty) return; // Skip if no change was made
 
-        // Builds the history object, finds the item's QuantityHistory collection, adds the object
+        // Fetch a document reference for the history document on the client side
+        DocumentReference historyRef = getHistoryCollection(uid, itemId).document();
+
+        // Build the history object and add the write to the batch
         QuantityHistory history = new QuantityHistory(oldQty, newQty, uid);
-        getHistoryCollection(uid, itemId).add(history)
-                .addOnFailureListener(e -> Log.e(TAG, "Error writing quantity history: " + e.getMessage(), e));
+        batch.set(historyRef, history);
     }
 
     /* Item methods */
@@ -219,42 +227,44 @@ public class ItemRepository {
 
     // addItem method
     // Takes an Item and OperationResult LiveData as parameters
-    // Attempts to add the item to the user's items collection
+    // Writes the new item, an audit log entry, and a quantity history
+    // entry in a Firestore WriteBatch so all three writes are synced
     // Posts result as a status from OperationResult to the LiveData
-    // Writes an AuditLog and QuantityHistory log on success
     public void addItem(Item item, MutableLiveData<InventoryViewModel.OperationResult> result) {
-        // Fetch user id and skip deletion if null
+        // Fetch user id and skip the add if null
         String uid = mUserRepo.getCurrentUserId();
         if (uid == null) {
             result.postValue(InventoryViewModel.OperationResult.ADD_FAILED);
             return;
         }
 
-        // Add item to user's items collection
-        getItemsCollection(uid).add(item)
-                .addOnSuccessListener(docRef -> {
-                    item.setID(docRef.getId()); // Sets the ID of the new item
+        // Generate the new item's document reference before the WriteBatch
+        DocumentReference itemRef = getItemsCollection(uid).document();
+        item.setID(itemRef.getId());
 
-                    // Logs the change in AuditLog
-                    writeAuditLog(uid, docRef.getId(), "INSERT",
-                            "Added " + item.getName() + " (qty: " + item.getQuantity() + ")");
+        // Build the batch with all 3 writes
+        WriteBatch batch = mFirestore.batch();
+        batch.set(itemRef, item);
+        addAuditLogToBatch(batch, uid, itemRef.getId(), "INSERT",
+                "Added " + item.getName() + " (qty: " + item.getQuantity() + ")");
+        // oldQty is 0 for the initial/pre-addition quantity
+        addQuantityHistoryToBatch(batch, uid, itemRef.getId(), 0, item.getQuantity());
 
-                    // Logs the change in QuantityHistory
-                    writeQuantityHistory(uid, docRef.getId(), 0, item.getQuantity());
-
-                    // Posts success to OperationResult
-                    result.postValue(InventoryViewModel.OperationResult.SUCCESS);
-                })
-                // Database operation error
-                .addOnFailureListener(e ->
-                        result.postValue(InventoryViewModel.OperationResult.ADD_FAILED));
+        // Commit the batch in one write
+        batch.commit()
+                .addOnSuccessListener(aVoid ->
+                        result.postValue(InventoryViewModel.OperationResult.SUCCESS))
+                .addOnFailureListener(e -> {
+                    Log.e(TAG, "Error committing addItem batch: " + e.getMessage(), e);
+                    result.postValue(InventoryViewModel.OperationResult.ADD_FAILED);
+                });
     }
 
     // updateItem method
     // Takes an Item, its pre-update quantity, OperationResult LiveData, and lowStockItemName LiveData as parameters
-    // Attempts to update the item in the user's items collection
+    // Writes the updated item, an audit log entry and a quantity history
+    // entry in a Firestore WriteBatch so all three writes are synced
     // Posts result as a status from OperationResult to the LiveData
-    // Writes an AuditLog and QuantityHistory log on success
     public void updateItem(Item item, int oldQuantity,
                            MutableLiveData<InventoryViewModel.OperationResult> result,
                            MutableLiveData<String> lowStockItemName) {
@@ -266,40 +276,40 @@ public class ItemRepository {
             return;
         }
 
-        // Update item in user's items collection
-        getItemsCollection(uid).document(item.getID()).set(item)
+        // Build the batch with all 3 writes
+        DocumentReference itemRef = getItemsCollection(uid).document(item.getID());
+        WriteBatch batch = mFirestore.batch();
+        batch.set(itemRef, item);
+        addAuditLogToBatch(batch, uid, item.getID(), "UPDATE",
+                "Updated " + item.getName() + " (qty: " + oldQuantity + " -> " + item.getQuantity() + ")");
+        addQuantityHistoryToBatch(batch, uid, item.getID(), oldQuantity, item.getQuantity());
+
+        // Commit the batch in one write
+        batch.commit()
                 .addOnSuccessListener(aVoid -> {
-
-                    // Logs the change in AuditLog
-                    writeAuditLog(uid, item.getID(), "UPDATE",
-                            "Updated " + item.getName() + " (qty: " + oldQuantity + " -> " + item.getQuantity() + ")");
-
-                    // Logs the change in QuantityHistory
-                    writeQuantityHistory(uid, item.getID(), oldQuantity, item.getQuantity());
-
                     // If the item's quantity is set to 0, add the item's name to lowStockItemName
                     if (item.getQuantity() == 0 && lowStockItemName != null) {
                         lowStockItemName.postValue(item.getName());
                     }
 
                     // Posts success result to OperationResult
-                    // Includes low stock indicator if the item's quantity is 0
                     if (item.getQuantity() == 0) {
                         result.postValue(InventoryViewModel.OperationResult.SUCCESS_LOW_STOCK);
                     } else {
                         result.postValue(InventoryViewModel.OperationResult.SUCCESS);
                     }
                 })
-                // Database operation error
-                .addOnFailureListener(e ->
-                        result.postValue(InventoryViewModel.OperationResult.UPDATE_FAILED));
+                .addOnFailureListener(e -> {
+                    Log.e(TAG, "Error committing updateItem batch: " + e.getMessage(), e);
+                    result.postValue(InventoryViewModel.OperationResult.UPDATE_FAILED);
+                });
     }
 
     // deleteItem method
     // Takes an Item and OperationResult LiveData as parameters
-    // Attempts to delete the item from the user's items collection
+    // Deletes the item from the user's items collection and writes an
+    // audit log entry in a WriteBatch
     // Posts result as a status from OperationResult to the LiveData
-    // Writes an AuditLog on success
     public void deleteItem(Item item, MutableLiveData<InventoryViewModel.OperationResult> result) {
         // Fetch user id and skip deletion if null
         String uid = mUserRepo.getCurrentUserId();
@@ -308,16 +318,20 @@ public class ItemRepository {
             return;
         }
 
-        // Delete item from user's items collection
-        getItemsCollection(uid).document(item.getID()).delete()
-                .addOnSuccessListener(aVoid -> {
-                    // Logs the change in AuditLog
-                    writeAuditLog(uid, item.getID(), "DELETE", "Deleted " + item.getName());
-                    result.postValue(InventoryViewModel.OperationResult.SUCCESS_DELETE);
-                })
-                // Database operation error
-                .addOnFailureListener(e ->
-                        result.postValue(InventoryViewModel.OperationResult.DELETE_FAILED));
+        // Build the batch with deletion and audit log entry
+        DocumentReference itemRef = getItemsCollection(uid).document(item.getID());
+        WriteBatch batch = mFirestore.batch();
+        batch.delete(itemRef);
+        addAuditLogToBatch(batch, uid, item.getID(), "DELETE", "Deleted " + item.getName());
+
+        // Commit the batch in one write
+        batch.commit()
+                .addOnSuccessListener(aVoid ->
+                        result.postValue(InventoryViewModel.OperationResult.SUCCESS_DELETE))
+                .addOnFailureListener(e -> {
+                    Log.e(TAG, "Error committing deleteItem batch: " + e.getMessage(), e);
+                    result.postValue(InventoryViewModel.OperationResult.DELETE_FAILED);
+                });
     }
 
     // getQuantityHistory method
