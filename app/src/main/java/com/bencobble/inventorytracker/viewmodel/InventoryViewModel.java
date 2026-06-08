@@ -1,7 +1,6 @@
 package com.bencobble.inventorytracker.viewmodel;
 
 import androidx.lifecycle.LiveData;
-import androidx.lifecycle.MediatorLiveData;
 import androidx.lifecycle.MutableLiveData;
 import androidx.lifecycle.ViewModel;
 
@@ -10,7 +9,6 @@ import com.bencobble.inventorytracker.model.QuantityHistory;
 import com.bencobble.inventorytracker.repository.ItemRepository;
 import com.bencobble.inventorytracker.util.ParseIntHelper;
 
-import java.util.ArrayList;
 import java.util.List;
 
 import javax.inject.Inject;
@@ -42,17 +40,6 @@ public class InventoryViewModel extends ViewModel {
         INVALID_QUANTITY
     }
 
-    /* Item lists and search filtering LiveData */
-
-    // Holds the entire list of items from the user's items collection
-    private final LiveData<List<Item>> mAllItems;
-
-    // Holds the search string currently in the SearchView bar (defaults to "")
-    private final MutableLiveData<String> mSearchQuery = new MutableLiveData<>("");
-
-    // Holds the filtered list of items based on the search query
-    private final MediatorLiveData<List<Item>> mFilteredItems = new MediatorLiveData<>();
-
     /* OperationResult LiveData */
 
     // LiveData to hold the OperationResult enum status code from item operations
@@ -69,67 +56,26 @@ public class InventoryViewModel extends ViewModel {
     @Inject
     public InventoryViewModel(ItemRepository repo) {
         mRepo = repo;
-        mAllItems = mRepo.getItems(); // Get initial list of all items
-
-        // Set up mFilteredItems MediatorLiveData with sources to observer
-        // Calls updateFilter when either mAllItems or mSearchQuery changes
-        mFilteredItems.addSource(mAllItems, items -> updateFilter());
-        mFilteredItems.addSource(mSearchQuery, query -> updateFilter());
     }
 
     /* Item methods */
 
     // getItems method
-    // Returns the current filtered list of items
-    // Observed by InventoryGridFragment to populate the RecyclerView
+    // Returns the items LiveData from the repository
     public LiveData<List<Item>> getItems() {
-        return mFilteredItems;
+        return mRepo.getItems();
     }
 
     // setSearchQuery method
-    // Takes a search query string as a parameter to update mSearchQuery
-    // Called by InventoryGridFragment when the query changes or search bar is collapsed
-    // Observed by mFilteredItems to update the filtered list of items on change
+    // Take a search query string as a parameter and calls the ItemRepository setSearchQuery method
     public void setSearchQuery(String query) {
-        mSearchQuery.setValue(query == null ? "" : query); // Empty string if query is null
+        mRepo.setSearchQuery(query);
     }
 
-    // updateFilter method
-    // Calls filter to update mFilteredItems with the filtered list
-    // using the current state of mAllItems and mSearchQuery
-    // Called by mFilteredItems MediatorLiveData when mAllItems or mSearchQuery changes
-    private void updateFilter() {
-        List<Item> items = mAllItems.getValue();
-        String query = mSearchQuery.getValue();
-
-        if (items == null) { return; } // Skip if there are no items to filter
-
-        mFilteredItems.setValue(filter(items, query)); // Calls filter method
-    }
-
-    // filter method
-    // Takes a list of items and a search query string as parameters
-    // Runs a case-insensitive search of item names against the search query
-    // Returns the filtered list
-    // Called by updateFilter
-    private List<Item> filter(List<Item> items, String query) {
-        // Skip filtering if query is null/empty
-        if (query == null || query.trim().isEmpty()) {
-            return items;
-        }
-
-        List<Item> filtered = new ArrayList<>();
-        String lowerCaseQuery = query.trim().toLowerCase(); // Convert query to lowercase
-
-        // Loops through the list of items and checks if the item name contains the query
-        // Adds matches to the filtered list
-        for (Item item : items) {
-            if (item.getName() != null
-                    && item.getName().toLowerCase().contains(lowerCaseQuery)) {
-                filtered.add(item);
-            }
-        }
-        return filtered;
+    // loadMore method
+    // Call the ItemRepository loadMore method to load the next page of items
+    public void loadMore() {
+        mRepo.loadMore();
     }
 
     // getItem method

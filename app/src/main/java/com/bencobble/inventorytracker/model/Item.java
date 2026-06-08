@@ -2,6 +2,8 @@ package com.bencobble.inventorytracker.model;
 
 import com.google.firebase.firestore.DocumentId;
 
+import java.util.List;
+
 // Item model class
 // Represents an inventory item with unique id, name, optional description, and quantity
 public class Item {
@@ -12,6 +14,7 @@ public class Item {
     private String name;
     private String description;
     private int quantity;
+    private List<String> searchTokens; // Prefix tokens of the name for search filtering
 
     /*Constructors*/
     public Item() {} // No-argument constructor needed for Firebase
@@ -49,5 +52,12 @@ public class Item {
     }
     public void setQuantity(int quantity) {
         this.quantity = quantity;
+    }
+
+    public List<String> getSearchTokens() {
+        return searchTokens;
+    }
+    public void setSearchTokens(List<String> searchTokens) {
+        this.searchTokens = searchTokens;
     }
 }

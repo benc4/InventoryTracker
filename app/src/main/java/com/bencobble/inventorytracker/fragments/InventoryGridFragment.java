@@ -85,14 +85,36 @@ public class InventoryGridFragment extends Fragment
 
         // Sets up RecyclerView for the card grid layout with 2 columns
         RecyclerView recyclerView = view.findViewById(R.id.recyclerViewInventory);
-        recyclerView.setLayoutManager(new GridLayoutManager(requireContext(), 2));
+        GridLayoutManager layoutManager = new GridLayoutManager(requireContext(), 2);
+        recyclerView.setLayoutManager(layoutManager);
 
         // Gets and sets the adapter for the RecyclerView to bind items to the cards
         InventoryItemAdapter adapter = new InventoryItemAdapter(mInventoryViewModel, this);
         recyclerView.setAdapter(adapter);
 
+        // Pagination scroll listener
+        // Uses the onScrolled callback to fire every time the user scrolls down
+        // Fetches the next page of items when the user scrolls close to the bottom of the list
+        recyclerView.addOnScrollListener(new RecyclerView.OnScrollListener() {
+            @Override
+            public void onScrolled(@NonNull RecyclerView rv, int dx, int dy) {
+                if (dy <= 0) return; // Skip if not scrolling down
+
+                // Get the last visible item's position
+                int lastVisible = layoutManager.findLastVisibleItemPosition();
+
+                // Get the total number of items in the list
+                int total = layoutManager.getItemCount();
+
+                // Pre-fetches the next items with a 10 item buffer to prevent delays
+                if (lastVisible >= total - 10) { // If the last item is 10 items away
+                    mInventoryViewModel.loadMore(); // Load the next page of items
+                }
+            }
+        });
+
         // getItems observer
-        // Observes changes to the mFilteredItems LiveData
+        // Observes changes to the items LiveData
         // Calls submitList in the adapter to update the RecyclerView when it updates
         mInventoryViewModel.getItems().observe(getViewLifecycleOwner(), adapter::submitList);
 

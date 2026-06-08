@@ -8,6 +8,7 @@ import androidx.lifecycle.MutableLiveData;
 import com.bencobble.inventorytracker.model.AuditLog;
 import com.bencobble.inventorytracker.model.Item;
 import com.bencobble.inventorytracker.model.QuantityHistory;
+import com.bencobble.inventorytracker.util.SearchTokensBuilder;
 import com.bencobble.inventorytracker.viewmodel.InventoryViewModel;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
@@ -17,10 +18,12 @@ import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.ListenerRegistration;
 import com.google.firebase.firestore.Query;
+import com.google.firebase.firestore.QuerySnapshot;
 import com.google.firebase.firestore.WriteBatch;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
@@ -31,6 +34,7 @@ import javax.inject.Singleton;
 @Singleton
 public class ItemRepository {
     private static final String TAG = "ItemRepository";
+    private static final int PAGE_SIZE = 50;
 
     private final FirebaseFirestore mFirestore;
     private final UserRepository mUserRepo;
@@ -43,6 +47,11 @@ public class ItemRepository {
 
     private String mCurrentListeningUid = null;
 
+    private String mCurrentSearchToken = null;
+    private DocumentSnapshot mLastVisibleDoc = null;
+    private boolean mIsLoadingMore = false;
+    private boolean mHasMore = true;
+
     /*Constructor*/
     @Inject
     public ItemRepository(UserRepository userRepo) {
@@ -50,11 +59,14 @@ public class ItemRepository {
         mUserRepo = userRepo;
 
         // AuthStateListener listens for changes in the user's authentication state
-        // If the user logs in, starts listening to their data
+        // If the user logs in, starts listening to their data and resets search and pagination
         // If the user logs out, stops listening to their data
         FirebaseAuth.getInstance().addAuthStateListener(firebaseAuth -> {
             FirebaseUser user = firebaseAuth.getCurrentUser();
             if (user != null) { // Logged in
+                mCurrentSearchToken = null;
+                mLastVisibleDoc = null;
+                mHasMore = true;
                 startItemsListener(user.getUid());
             } else { // Logged out
                 stopItemsListener();
@@ -66,66 +78,151 @@ public class ItemRepository {
 
     // startItemsListener method
     // Listens to changes in the user's items
-    // by attaching a Firestore snapshot listener
-    // Listener is active the whole time the user is logged in
-    // Posts current items list to mAllItemsLiveData
+    //   - Browse mode (no search token): first PAGE_SIZE items, ordered by name
+    //   - Search mode (search token set): items whose searchTokens array contains the token
+    // Tears down any prior listener first so only one is active at a time
     private void startItemsListener(String uid) {
-        // Skip if already listening to this user's data
-        if (mItemsListener != null && uid.equals(mCurrentListeningUid)) {
-            return;
-        }
-
         // Stop any existing listeners before starting a new one
         // Prevents more than one listener from existing
         stopItemsListener();
 
-        // Assign listening id to current user
         mCurrentListeningUid = uid;
+
+        // Build the items query
+        // If there is a search query, filter the query by prefix token
+        // otherwise, query all items up to PAGE_SIZE
+        Query query = getItemsCollection(uid).orderBy("name", Query.Direction.ASCENDING);
+        if (mCurrentSearchToken != null) {
+            // Search query
+            query = query.whereArrayContains("searchTokens", mCurrentSearchToken).limit(PAGE_SIZE);
+        } else {
+            // No search query
+            query = query.limit(PAGE_SIZE);
+        }
 
         // Attaches the Firestore snapshot listener
         // to the user's items collection
-        mItemsListener = mFirestore.collection("users").document(uid).collection("items")
-                .orderBy("name", Query.Direction.ASCENDING)
+        mItemsListener = query.addSnapshotListener((snapshots, error) -> {
+            if (error != null) {
+                Log.e(TAG, "Error fetching items: " + error.getMessage(), error);
+                return;
+            }
 
-                .addSnapshotListener((snapshots, error) -> {
-                    // Log error and return on failure
-                    // Prevents bad data in the list
-                    if (error != null) {
-                        Log.e(TAG, "Error fetching items: " + error.getMessage(), error);
-                        return;
+            // Convert the snapshot items to a list of Item objects
+            List<Item> itemList = new ArrayList<>();
+            if (snapshots != null) {
+                for (DocumentSnapshot doc : snapshots.getDocuments()) {
+                    Item item = doc.toObject(Item.class);
+                    if (item != null) {
+                        itemList.add(item);
                     }
+                }
 
-                    // Convert the snapshot items to a list of Item objects
-                    List<Item> itemList = new ArrayList<>();
-                    if (snapshots != null) {
-                        for (DocumentSnapshot doc : snapshots.getDocuments()) {
-                            Item item = doc.toObject(Item.class);
-                            if (item != null) {
-                                itemList.add(item);
-                            }
-                        }
-                    }
+                // Update mLastVisibleDoc with the last loaded document if viewing items
+                // without any search filtering
+                // Update mHasMore bool based on whether there are more items to load
+                if (mCurrentSearchToken == null) {
+                    int size = snapshots.size(); // Size of items loaded in the snapshot
+                    mLastVisibleDoc = size > 0 ? snapshots.getDocuments().get(size - 1) : null;
+                    // If PAGE_SIZE items were fetched, set mHasMore to true to indicate
+                    // that there are more items, otherwise false
+                    mHasMore = size == PAGE_SIZE;
+                }
+            }
 
-                    // Post the updated list to the LiveData
-                    mAllItemsLiveData.postValue(itemList);
-                });
+            mAllItemsLiveData.postValue(itemList);
+        });
     }
 
     // stopItemsListener method
-    // Stops the snapshot listener from startItemsListener
+    // Stops the snapshot listener from startItemsListener and resets pagination state
     // Prevents showing another user's data
     // if they were previously logged in
     private void stopItemsListener() {
-        // If the listener exists,
-        // Remove it and set it to null
         if (mItemsListener != null) {
             mItemsListener.remove();
             mItemsListener = null;
         }
 
-        // Reset listening user id and clear item list
+        // Reset state
         mCurrentListeningUid = null;
+        mLastVisibleDoc = null;
+        mHasMore = true;
+        mIsLoadingMore = false;
         mAllItemsLiveData.postValue(new ArrayList<>());
+    }
+
+    /* Search and pagination methods */
+
+    // setSearchQuery method
+    // Sets the current search query
+    // Re-attaches the listener to switch to query mode
+    public void setSearchQuery(String query) {
+        String token = SearchTokensBuilder.normalizeQuery(query);
+
+        // Skip if the token wasn't changed
+        if (Objects.equals(token, mCurrentSearchToken)) {
+            return;
+        }
+
+        mCurrentSearchToken = token;
+
+        // Re-attach the listener to start query mode
+        // Only if the user is logged in
+        String uid = mUserRepo.getCurrentUserId();
+        if (uid != null) {
+            startItemsListener(uid);
+        }
+    }
+
+    // loadMore method
+    // Fetches the next page of items from Firestore
+    public void loadMore() {
+        // Skip if in search mode or there are no more items to load
+        if (mCurrentSearchToken != null) return;
+        if (mIsLoadingMore || !mHasMore || mLastVisibleDoc == null) return;
+
+        String uid = mUserRepo.getCurrentUserId();
+        if (uid == null) return;
+
+        mIsLoadingMore = true;
+
+        // Fetch the next page of items starting at the document after the last one previously loaded
+        getItemsCollection(uid)
+                .orderBy("name", Query.Direction.ASCENDING)
+                .startAfter(mLastVisibleDoc)
+                .limit(PAGE_SIZE)
+                .get()
+                .addOnSuccessListener(snapshots -> {
+                    appendPage(snapshots);
+                    mIsLoadingMore = false;
+                })
+                .addOnFailureListener(e -> {
+                    Log.e(TAG, "Error loading more items: " + e.getMessage(), e);
+                    mIsLoadingMore = false;
+                });
+    }
+
+    // appendPage helper method
+    // Appends the fetched page to the current LiveData and updates mLastVisibleDoc and mHasMore
+    private void appendPage(QuerySnapshot snapshots) {
+        List<Item> current = mAllItemsLiveData.getValue();
+        List<Item> updated = current == null ? new ArrayList<>() : new ArrayList<>(current);
+
+        for (DocumentSnapshot doc : snapshots.getDocuments()) {
+            Item item = doc.toObject(Item.class);
+            if (item != null) {
+                updated.add(item);
+            }
+        }
+
+        int size = snapshots.size();
+        if (size > 0) {
+            mLastVisibleDoc = snapshots.getDocuments().get(size - 1);
+        }
+        mHasMore = size == PAGE_SIZE;
+
+        mAllItemsLiveData.postValue(updated);
     }
 
     /* Firebase CollectionReference helpers */
@@ -242,6 +339,9 @@ public class ItemRepository {
         DocumentReference itemRef = getItemsCollection(uid).document();
         item.setID(itemRef.getId());
 
+        // Populate the prefix tokens for server-side search
+        item.setSearchTokens(SearchTokensBuilder.tokenizeName(item.getName()));
+
         // Build the batch with all 3 writes
         WriteBatch batch = mFirestore.batch();
         batch.set(itemRef, item);
@@ -275,6 +375,9 @@ public class ItemRepository {
             result.postValue(InventoryViewModel.OperationResult.UPDATE_FAILED);
             return;
         }
+
+        // Rebuild the prefix tokens in case the name was edited
+        item.setSearchTokens(SearchTokensBuilder.tokenizeName(item.getName()));
 
         // Build the batch with all 3 writes
         DocumentReference itemRef = getItemsCollection(uid).document(item.getID());
