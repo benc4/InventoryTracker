@@ -19,10 +19,11 @@ public class LoginViewModel extends ViewModel {
     private final UserRepository mRepo;
 
     // UserResult enum
-    // Contains status codes for login and account creation
+    // Contains status codes for login, account creation, and organization membership
     public enum UserResult {
         SUCCESS_LOGIN,
         SUCCESS_CREATE_ACC,
+        SUCCESS_ORG_SETUP,
         EMPTY_FIELDS,
         INVALID_CREDENTIALS,
         USER_NOT_FOUND,
@@ -32,7 +33,11 @@ public class LoginViewModel extends ViewModel {
         EMAIL_INVALID,
         WEAK_PASSWORD,
         FIREBASE_AUTH_ERROR,
-        AUTHENTICATION_DISABLED
+        AUTHENTICATION_DISABLED,
+        ORG_NAME_EMPTY,
+        INVITE_CODE_EMPTY,
+        INVITE_CODE_INVALID,
+        ORG_OPERATION_FAILED
     }
 
     // LiveData to hold the UserResult enum status code from login or account creation
@@ -76,5 +81,42 @@ public class LoginViewModel extends ViewModel {
     // Calls UserRepository isLoggedIn method
     public boolean isLoggedIn() {
         return mRepo.isLoggedIn();
+    }
+
+    /* Organization methods */
+
+    // createOrganization method
+    // Takes an org name as a parameter
+    // Calls UserRepository createOrganization method
+    public void createOrganization(String name) {
+        mRepo.createOrganization(name, mUserResult);
+    }
+
+    // joinOrganization method
+    // Takes an invite code as a parameter
+    // Calls UserRepository joinOrganization method
+    public void joinOrganization(String inviteCode) {
+        mRepo.joinOrganization(inviteCode, mUserResult);
+    }
+
+    // getCurrentOrgId method
+    // Returns the cached organizationId for the current user, or null if not loaded
+    // Used by LoginFragment to decide whether to send the user to org setup or grid
+    public String getCurrentOrgId() {
+        return mRepo.getCurrentOrgId();
+    }
+
+    // consumeLastCreatedInviteCode method
+    // Returns the invite code from the most recent createOrganization call
+    // Returns null if the user joined an existing org
+    public String consumeLastCreatedInviteCode() {
+        return mRepo.consumeLastCreatedInviteCode();
+    }
+
+    // loadCurrentOrgId method
+    // Calls UserRepository loadCurrentOrgId to fetch the organization id
+    // Invokes onComplete when done
+    public void loadCurrentOrgId(Runnable onComplete) {
+        mRepo.loadCurrentOrgId(onComplete);
     }
 }

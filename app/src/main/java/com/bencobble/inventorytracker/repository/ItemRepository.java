@@ -67,7 +67,7 @@ public class ItemRepository {
                 mCurrentSearchToken = null;
                 mLastVisibleDoc = null;
                 mHasMore = true;
-                startItemsListener(user.getUid());
+                mUserRepo.loadCurrentOrgId(this::startItemsListenerIfReady); // Fetch org id
             } else { // Logged out
                 stopItemsListener();
             }
@@ -76,22 +76,39 @@ public class ItemRepository {
 
     /* ItemsListener methods */
 
-    // startItemsListener method
-    // Listens to changes in the user's items
-    //   - Browse mode (no search token): first PAGE_SIZE items, ordered by name
-    //   - Search mode (search token set): items whose searchTokens array contains the token
-    // Tears down any prior listener first so only one is active at a time
-    private void startItemsListener(String uid) {
-        // Stop any existing listeners before starting a new one
-        // Prevents more than one listener from existing
-        stopItemsListener();
+    // checkItemsListener method
+    // Attaches the items snapshot listener if not already running
+    public void checkItemsListener() {
+        if (mItemsListener != null) return; // Already running
+        if (mUserRepo.getCurrentUserId() == null) return; // Not signed in
 
+        if (mUserRepo.getCurrentOrgId() != null) {
+            startItemsListenerIfReady();
+        } else {
+            mUserRepo.loadCurrentOrgId(this::startItemsListenerIfReady);
+        }
+    }
+
+    // startItemsListenerIfReady method
+    // Starts the items listener when the uid and orgId are available
+    // Called after loading the orgId
+    private void startItemsListenerIfReady() {
+        String uid = mUserRepo.getCurrentUserId();
+        String orgId = mUserRepo.getCurrentOrgId();
+        if (uid == null || orgId == null) return;
+        startItemsListener(uid, orgId);
+    }
+
+    // startItemsListener method
+    // Attaches the items snapshot listener for the given uid/orgId
+    private void startItemsListener(String uid, String orgId) {
+        stopItemsListener();
         mCurrentListeningUid = uid;
 
         // Build the items query
         // If there is a search query, filter the query by prefix token
         // otherwise, query all items up to PAGE_SIZE
-        Query query = getItemsCollection(uid).orderBy("name", Query.Direction.ASCENDING);
+        Query query = getItemsCollection(orgId).orderBy("name", Query.Direction.ASCENDING);
         if (mCurrentSearchToken != null) {
             // Search query
             query = query.whereArrayContains("searchTokens", mCurrentSearchToken).limit(PAGE_SIZE);
@@ -167,12 +184,8 @@ public class ItemRepository {
 
         mCurrentSearchToken = token;
 
-        // Re-attach the listener to start query mode
-        // Only if the user is logged in
-        String uid = mUserRepo.getCurrentUserId();
-        if (uid != null) {
-            startItemsListener(uid);
-        }
+        // Re-attach the listener for the new mode if uid and orgId are both available
+        startItemsListenerIfReady();
     }
 
     // loadMore method
@@ -182,13 +195,13 @@ public class ItemRepository {
         if (mCurrentSearchToken != null) return;
         if (mIsLoadingMore || !mHasMore || mLastVisibleDoc == null) return;
 
-        String uid = mUserRepo.getCurrentUserId();
-        if (uid == null) return;
+        String orgId = mUserRepo.getCurrentOrgId();
+        if (orgId == null) return;
 
         mIsLoadingMore = true;
 
         // Fetch the next page of items starting at the document after the last one previously loaded
-        getItemsCollection(uid)
+        getItemsCollection(orgId)
                 .orderBy("name", Query.Direction.ASCENDING)
                 .startAfter(mLastVisibleDoc)
                 .limit(PAGE_SIZE)
@@ -227,16 +240,16 @@ public class ItemRepository {
 
     /* Firebase CollectionReference helpers */
 
-    private CollectionReference getItemsCollection(String uid) {
-        return mFirestore.collection("users").document(uid).collection("items");
+    private CollectionReference getItemsCollection(String orgId) {
+        return mFirestore.collection("organizations").document(orgId).collection("items");
     }
 
-    private CollectionReference getAuditLogCollection(String uid) {
-        return mFirestore.collection("users").document(uid).collection("auditLog");
+    private CollectionReference getAuditLogCollection(String orgId) {
+        return mFirestore.collection("organizations").document(orgId).collection("auditLog");
     }
 
-    private CollectionReference getHistoryCollection(String uid, String itemId) {
-        return getItemsCollection(uid).document(itemId).collection("history");
+    private CollectionReference getHistoryCollection(String orgId, String itemId) {
+        return getItemsCollection(orgId).document(itemId).collection("history");
     }
 
     /* AuditLog methods */
@@ -245,10 +258,10 @@ public class ItemRepository {
     // Adds an audit log write to a Firestore WriteBatch
     // Includes the uid of who made the change, item's id, action, and details
     // Called when an item is added, updated, or deleted
-    private void addAuditLogToBatch(WriteBatch batch, String uid, String itemId,
+    private void addAuditLogToBatch(WriteBatch batch, String orgId, String uid, String itemId,
                                     String action, String details) {
         // Fetch a document reference for the auditLog on the client side
-        DocumentReference logRef = getAuditLogCollection(uid).document();
+        DocumentReference logRef = getAuditLogCollection(orgId).document();
 
         // Build the log object and add the write to the batch
         AuditLog log = new AuditLog(uid, itemId, action, details);
@@ -261,12 +274,12 @@ public class ItemRepository {
     // Adds a quantity history write to a Firestore WriteBatch
     // Called when an item's quantity is updated or initially set
     // Includes the uid of who made the change, item's id, old quantity, and new quantity
-    private void addQuantityHistoryToBatch(WriteBatch batch, String uid, String itemId,
+    private void addQuantityHistoryToBatch(WriteBatch batch, String orgId, String uid, String itemId,
                                            int oldQty, int newQty) {
         if (oldQty == newQty) return; // Skip if no change was made
 
         // Fetch a document reference for the history document on the client side
-        DocumentReference historyRef = getHistoryCollection(uid, itemId).document();
+        DocumentReference historyRef = getHistoryCollection(orgId, itemId).document();
 
         // Build the history object and add the write to the batch
         QuantityHistory history = new QuantityHistory(oldQty, newQty, uid);
@@ -288,9 +301,9 @@ public class ItemRepository {
     public LiveData<Item> getItem(String id) {
         MutableLiveData<Item> itemData = new MutableLiveData<>();
 
-        // Fetch user id and skip item fetching if null
-        String uid = mUserRepo.getCurrentUserId();
-        if (uid == null || id == null) {
+        // Fetch orgId and skip item fetching if null
+        String orgId = mUserRepo.getCurrentOrgId();
+        if (orgId == null || id == null) {
             return itemData;
         }
 
@@ -298,7 +311,7 @@ public class ItemRepository {
         // Prevents more than one listener from existing
         stopItemListener();
 
-        getItemsCollection(uid).document(id)
+        getItemsCollection(orgId).document(id)
                 .addSnapshotListener((snapshot, error) -> {
                     if (error != null || snapshot == null || !snapshot.exists()) {
                         itemData.postValue(null);
@@ -328,15 +341,16 @@ public class ItemRepository {
     // entry in a Firestore WriteBatch so all three writes are synced
     // Posts result as a status from OperationResult to the LiveData
     public void addItem(Item item, MutableLiveData<InventoryViewModel.OperationResult> result) {
-        // Fetch user id and skip the add if null
+        // Fetch user id and orgId and skip the add if either are null
         String uid = mUserRepo.getCurrentUserId();
-        if (uid == null) {
+        String orgId = mUserRepo.getCurrentOrgId();
+        if (uid == null || orgId == null) {
             result.postValue(InventoryViewModel.OperationResult.ADD_FAILED);
             return;
         }
 
         // Generate the new item's document reference before the WriteBatch
-        DocumentReference itemRef = getItemsCollection(uid).document();
+        DocumentReference itemRef = getItemsCollection(orgId).document();
         item.setID(itemRef.getId());
 
         // Populate the prefix tokens for server-side search
@@ -345,10 +359,10 @@ public class ItemRepository {
         // Build the batch with all 3 writes
         WriteBatch batch = mFirestore.batch();
         batch.set(itemRef, item);
-        addAuditLogToBatch(batch, uid, itemRef.getId(), "INSERT",
+        addAuditLogToBatch(batch, orgId, uid, itemRef.getId(), "INSERT",
                 "Added " + item.getName() + " (qty: " + item.getQuantity() + ")");
         // oldQty is 0 for the initial/pre-addition quantity
-        addQuantityHistoryToBatch(batch, uid, itemRef.getId(), 0, item.getQuantity());
+        addQuantityHistoryToBatch(batch, orgId, uid, itemRef.getId(), 0, item.getQuantity());
 
         // Commit the batch in one write
         batch.commit()
@@ -369,9 +383,10 @@ public class ItemRepository {
                            MutableLiveData<InventoryViewModel.OperationResult> result,
                            MutableLiveData<String> lowStockItemName) {
 
-        // Fetch user id and skip update if null
+        // Fetch user id and orgId and skip the update if either are null
         String uid = mUserRepo.getCurrentUserId();
-        if (uid == null) {
+        String orgId = mUserRepo.getCurrentOrgId();
+        if (uid == null || orgId == null) {
             result.postValue(InventoryViewModel.OperationResult.UPDATE_FAILED);
             return;
         }
@@ -380,12 +395,12 @@ public class ItemRepository {
         item.setSearchTokens(SearchTokensBuilder.tokenizeName(item.getName()));
 
         // Build the batch with all 3 writes
-        DocumentReference itemRef = getItemsCollection(uid).document(item.getID());
+        DocumentReference itemRef = getItemsCollection(orgId).document(item.getID());
         WriteBatch batch = mFirestore.batch();
         batch.set(itemRef, item);
-        addAuditLogToBatch(batch, uid, item.getID(), "UPDATE",
+        addAuditLogToBatch(batch, orgId, uid, item.getID(), "UPDATE",
                 "Updated " + item.getName() + " (qty: " + oldQuantity + " -> " + item.getQuantity() + ")");
-        addQuantityHistoryToBatch(batch, uid, item.getID(), oldQuantity, item.getQuantity());
+        addQuantityHistoryToBatch(batch, orgId, uid, item.getID(), oldQuantity, item.getQuantity());
 
         // Commit the batch in one write
         batch.commit()
@@ -414,18 +429,19 @@ public class ItemRepository {
     // audit log entry in a WriteBatch
     // Posts result as a status from OperationResult to the LiveData
     public void deleteItem(Item item, MutableLiveData<InventoryViewModel.OperationResult> result) {
-        // Fetch user id and skip deletion if null
+        // Fetch user id and orgId and skip the deletion if either are null
         String uid = mUserRepo.getCurrentUserId();
-        if (uid == null) {
+        String orgId = mUserRepo.getCurrentOrgId();
+        if (uid == null || orgId == null) {
             result.postValue(InventoryViewModel.OperationResult.DELETE_FAILED);
             return;
         }
 
         // Build the batch with deletion and audit log entry
-        DocumentReference itemRef = getItemsCollection(uid).document(item.getID());
+        DocumentReference itemRef = getItemsCollection(orgId).document(item.getID());
         WriteBatch batch = mFirestore.batch();
         batch.delete(itemRef);
-        addAuditLogToBatch(batch, uid, item.getID(), "DELETE", "Deleted " + item.getName());
+        addAuditLogToBatch(batch, orgId, uid, item.getID(), "DELETE", "Deleted " + item.getName());
 
         // Commit the batch in one write
         batch.commit()
@@ -445,15 +461,15 @@ public class ItemRepository {
     public LiveData<List<QuantityHistory>> getQuantityHistory(String id, MutableLiveData<InventoryViewModel.OperationResult> result) {
         MutableLiveData<List<QuantityHistory>> historyData = new MutableLiveData<>();
 
-        // Fetch user id and skip fetching if uid or item id null
-        String uid = mUserRepo.getCurrentUserId();
-        if (uid == null || id == null) {
+        // Fetch orgId and skip fetching if orgId or item id null
+        String orgId = mUserRepo.getCurrentOrgId();
+        if (orgId == null || id == null) {
             result.postValue(InventoryViewModel.OperationResult.GET_QUANTITY_HISTORY_FAILED);
             return historyData;
         }
 
-        // Fetch QuantityHistory objects from user's items' history collection
-        getHistoryCollection(uid, id)
+        // Fetch QuantityHistory objects from the org's items' history collection
+        getHistoryCollection(orgId, id)
                 // Sort by timestamp in ascending order
                 .orderBy("timestamp", Query.Direction.ASCENDING)
                 .addSnapshotListener((snapshots, error) -> {

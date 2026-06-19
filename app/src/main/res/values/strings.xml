@@ -48,4 +48,17 @@
     <string name="quantity_history">Quantity History</string>
     <string name="something_went_wrong">Something went wrong. Please try again.</string>
     <string name="invalid_quantity">Please enter a valid quantity</string>
+    <string name="org_setup_title">Set up your organization</string>
+    <string name="org_create_subtitle">Create a new organization</string>
+    <string name="org_join_subtitle">Or join an existing organization</string>
+    <string name="org_name">Organization name</string>
+    <string name="invite_code">Invite code</string>
+    <string name="join">Join</string>
+    <string name="org_name_empty">Please enter an organization name</string>
+    <string name="invite_code_empty">Please enter an invite code</string>
+    <string name="invite_code_invalid">No organization found with that invite code</string>
+    <string name="org_operation_failed">An error occurred. Please try again.</string>
+    <string name="invite_code_dialog_title">Your organization is ready</string>
+    <string name="invite_code_dialog_message">Share this code with other users so they can join your organization:\n\n%1$s\n\nYou can also find it later in Firebase.</string>
+    <string name="ok">OK</string>
 </resources>

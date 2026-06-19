@@ -78,6 +78,12 @@ public class InventoryViewModel extends ViewModel {
         mRepo.loadMore();
     }
 
+    // checkItemsListener method
+    // Calls the repository checkItemsListener method to start the listener if it isn't running
+    public void ensureItemsListenerActive() {
+        mRepo.checkItemsListener();
+    }
+
     // getItem method
     // Takes an item ID as a parameter
     // Returns the matching item from the user's items collection

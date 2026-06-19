@@ -83,6 +83,10 @@ public class InventoryGridFragment extends Fragment
         // item LiveData is shared between fragments through ItemRepository
         mInventoryViewModel = new ViewModelProvider(this).get(InventoryViewModel.class);
 
+        // Make sure the items listener is running
+        // Needed after registration and org setup to refresh the auth state listener
+        mInventoryViewModel.ensureItemsListenerActive();
+
         // Sets up RecyclerView for the card grid layout with 2 columns
         RecyclerView recyclerView = view.findViewById(R.id.recyclerViewInventory);
         GridLayoutManager layoutManager = new GridLayoutManager(requireContext(), 2);

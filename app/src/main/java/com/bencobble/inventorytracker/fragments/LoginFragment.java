@@ -64,9 +64,10 @@ public class LoginFragment extends Fragment {
         mLoginViewModel = new ViewModelProvider(this).get(LoginViewModel.class);
 
         // Check if the user is already logged in
-        // If they are, skip the login screen and navigate to InventoryGridFragment
+        // If they are, load their orgId and route to grid or org setup
         if (mLoginViewModel.isLoggedIn()) {
-            Navigation.findNavController(view).navigate(R.id.action_login_to_grid);
+            disableLoginUI();
+            mLoginViewModel.loadCurrentOrgId(this::routeAfterAuth);
             return;
         }
 
@@ -103,18 +104,33 @@ public class LoginFragment extends Fragment {
     // processResult method
     // Takes a UserResult code as a parameter
     // Called by the getUserResult observer
-    // to handle the UserResult code when it updates
-    // Navigates to the grid fragment on success,
-    // calls showStatus otherwise
     private void processResult(LoginViewModel.UserResult result) {
         if (result == LoginViewModel.UserResult.SUCCESS_LOGIN) {
+            mLoginViewModel.loadCurrentOrgId(this::routeAfterAuth);
+            return;
+        }
+
+        if (result == LoginViewModel.UserResult.SUCCESS_CREATE_ACC) {
             Navigation.findNavController(requireView())
-                    .navigate(R.id.action_login_to_grid);
+                    .navigate(R.id.action_login_to_orgSetup);
             return;
         }
 
         showStatus(result);
         enableLoginUI(); // Re-enable UI because processing is done
+    }
+
+    // routeAfterAuth method
+    // Reads the orgId and navigates to grid or org setup
+    // Called after loadCurrentOrgId completes
+    private void routeAfterAuth() {
+        if (mLoginViewModel.getCurrentOrgId() != null) {
+            Navigation.findNavController(requireView())
+                    .navigate(R.id.action_login_to_grid);
+        } else {
+            Navigation.findNavController(requireView())
+                    .navigate(R.id.action_login_to_orgSetup);
+        }
     }
 
     // showStatus method
